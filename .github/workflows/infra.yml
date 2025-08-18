@@ -20,8 +20,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout infra branch
         uses: actions/checkout@v4
+        with:
+          ref: infra
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
