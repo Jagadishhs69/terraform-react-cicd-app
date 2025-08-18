@@ -162,9 +162,16 @@ resource "aws_autoscaling_group" "asg" {
   health_check_type         = "EC2"
   health_check_grace_period = 90
 
-  launch_template { id = aws_launch_template.lt.id version = "$Latest" }
+  launch_template { 
+    id = aws_launch_template.lt.id 
+    version = "$Latest" 
+  }
 
-  tag { key = "Name" value = "${var.env}-react-ec2" propagate_at_launch = true }
+  tag { 
+    key = "Name" 
+    value = "${var.env}-react-ec2" 
+    propagate_at_launch = true 
+  }
 
   lifecycle { create_before_destroy = true }
 }
