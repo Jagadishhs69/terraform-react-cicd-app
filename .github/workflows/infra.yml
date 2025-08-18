@@ -83,6 +83,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Download tfplan
+        uses: actions/download-artifact@v4
+        with:
+          name: plan.txt
+          path: ./environment/${{ github.event.inputs.environment }}
+
       - name: Terraform Init
         working-directory: ./environment/${{ github.event.inputs.environment }}
         run: terraform init
