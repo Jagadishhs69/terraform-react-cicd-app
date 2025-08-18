@@ -82,7 +82,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        working-directory: ./environment/${{ github.event.inputs.environment }}
+        working-directory: /environment/${{ github.event.inputs.environment }}
         run: terraform init
 
       - name: Terraform Apply
