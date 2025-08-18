@@ -9,7 +9,7 @@ desired_capacity   = 2
 min_size           = 1
 max_size           = 3
 
-ssh_cidr_blocks    = ["YOUR.IP.ADDR.0/24"]     # or []
+ssh_cidr_blocks    = []
 
 log_retention_days = 14
 cpu_high_threshold = 80
