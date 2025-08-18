@@ -58,17 +58,6 @@ jobs:
           name: terraform-plan-text
           path: ./environment/${{ github.event.inputs.environment }}/plan.txt
 
-      - name: Get ASG Name
-        id: get_asg
-        run: echo "ASG_NAME=$(terraform output -raw asg_name)" >> $GITHUB_OUTPUT
-        working-directory: environment/dev
- 
-      - name: Export Outputs (ASG name)
-        id: tfout
-        working-directory: environment/${{ github.event.inputs.environment }}
-        run: |
-          echo "ASG_NAME=${{ steps.get_asg.outputs.ASG_NAME }}" >> $GITHUB_OUTPUT
-
   terraform-apply:
     name: Terraform Apply
     runs-on: ubuntu-latest
@@ -99,5 +88,15 @@ jobs:
       - name: Terraform Apply
         working-directory: ./environment/${{ github.event.inputs.environment }}
         run: terraform apply -auto-approve tfplan
+
+      - name: Get Outputs
+        id: tf-outputs
+        working-directory: environment/${{ github.event.inputs.environment }}
+        run: 
+          echo "ASG_NAME=$(terraform output -raw asg_name)" >> $GITHUB_OUTPUT
+          echo "ALB_DNS=$(terraform output -raw alb_dns_name)" >> $GITHUB_OUTPUT
+          echo "ECR_REPO=$(terraform output -raw ecr_repo)" >> $GITHUB_OUTPUT
+        
+ 
 
       
