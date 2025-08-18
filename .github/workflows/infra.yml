@@ -1,0 +1,43 @@
+name: Terraform Infra
+
+on:
+  push:
+    branches: [ infra ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'dev | staging | prod'
+        required: true
+        default: 'dev'
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    env:
+      ENV: ${{ github.event.inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: infra/environments/${{ env.ENV }}
+        run: terraform init
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION:            ${{ secrets.AWS_REGION }}
+
+      - name: Terraform Apply
+        working-directory: infra/environments/${{ env.ENV }}
+        run: terraform apply -auto-approve -var-file=../../tfvars/${{ env.ENV }}.tfvars
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION:            ${{ secrets.AWS_REGION }}
+
+      - name: Export Outputs (ASG name)
+        id: tfout
+        working-directory: infra/environments/${{ env.ENV }}
+        run: |
+          echo "ASG_NAME=$(terraform output -raw asg_name)" >> $GITHUB_OUTPUT

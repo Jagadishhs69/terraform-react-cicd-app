@@ -1,0 +1,36 @@
+name: Build & Deploy React to ECR
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Build static site & containerize using your Dockerfile under ./app
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & Push Image
+        run: |
+          IMAGE="${{ secrets.ECR_REPO_URL }}"    # e.g. 123456789012.dkr.ecr.ap-south-1.amazonaws.com/dev-react-app
+          docker build -t $IMAGE:latest ./app
+          docker push $IMAGE:latest
+
+      - name: Start ASG Instance Refresh (rolling)
+        run: |
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "${{ secrets.ASG_NAME_DEV }}" \
+            --preferences MinHealthyPercentage=90,InstanceWarmup=60
