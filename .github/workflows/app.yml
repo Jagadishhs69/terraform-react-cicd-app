@@ -26,7 +26,7 @@ jobs:
       - name: Build & Push Image
         run: |
           IMAGE="${{ secrets.ECR_REPO_URL }}"    # e.g. 123456789012.dkr.ecr.ap-south-1.amazonaws.com/dev-react-app
-          docker build -t $IMAGE:latest ./app
+          docker build -t $IMAGE:latest .
           docker push $IMAGE:latest
 
       - name: Start ASG Instance Refresh (rolling)
