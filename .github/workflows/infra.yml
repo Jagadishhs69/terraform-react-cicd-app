@@ -60,7 +60,7 @@ jobs:
 
       - name: Export Outputs (ASG name)
         id: tfout
-        working-directory: infra/environment/${{ github.event.inputs.environment }}
+        working-directory: environment/${{ github.event.inputs.environment }}
         run: |
           echo "ASG_NAME=$(terraform output -raw asg_name)" >> $GITHUB_OUTPUT
 
