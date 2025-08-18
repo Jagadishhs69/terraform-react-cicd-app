@@ -68,6 +68,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: infra
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -82,16 +84,16 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Terraform Init
-        working-directory: environment/${{ github.event.inputs.environment }}
+        working-directory: ./environment/${{ github.event.inputs.environment }}
         run: terraform init
 
       - name: Terraform Apply
-        working-directory: environment/${{ github.event.inputs.environment }}
+        working-directory: ./environment/${{ github.event.inputs.environment }}
         run: terraform apply -auto-approve tfplan
 
       - name: Get Outputs
         id: tf-outputs
-        working-directory: environment/${{ github.event.inputs.environment }}
+        working-directory: ./environment/${{ github.event.inputs.environment }}
         run: 
           echo "ASG_NAME=$(terraform output -raw asg_name)" >> $GITHUB_OUTPUT
           echo "ALB_DNS=$(terraform output -raw alb_dns_name)" >> $GITHUB_OUTPUT
