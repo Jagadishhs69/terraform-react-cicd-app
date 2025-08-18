@@ -3,7 +3,7 @@ region             = "ap-south-1"
 vpc_cidr           = "10.0.0.0/16"
 azs                = ["ap-south-1a","ap-south-1b"]
 
-ami_id             = "ami-0c1a7f89451184c8b"   # Ubuntu 22.04 in ap-south-1 (verify)
+ami_id             = "ami-0f918f7e67a3323f0"   # Ubuntu 22.04 in ap-south-1 (verify)
 instance_type      = "t3.micro"
 desired_capacity   = 2
 min_size           = 1
