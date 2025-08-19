@@ -108,10 +108,28 @@ data "template_cloudinit_config" "userdata" {
       #!/bin/bash
       set -e
 
-      apt-get update -y
-      apt-get install -y docker.io awscli
-      systemctl enable docker
-      systemctl start docker
+      # Update system
+      apt-get update -y >> /var/log/user-data.log 2>&1
+
+      # Install Docker
+      echo "Installing Docker" >> /var/log/user-data.log
+      apt-get install -y docker.io >> /var/log/user-data.log 2>&1
+      systemctl enable docker >> /var/log/user-data.log 2>&1
+      systemctl start docker >> /var/log/user-data.log 2>&1
+      usermod -a -G docker ubuntu >> /var/log/user-data.log 2>&1
+
+      # Install AWS CLI v2
+      echo "Installing AWS CLI v2" >> /var/log/user-data.log
+      apt-get install -y unzip curl >> /var/log/user-data.log 2>&1
+      curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" >> /var/log/user-data.log 2>&1
+      unzip awscliv2.zip >> /var/log/user-data.log 2>&1
+      ./aws/install >> /var/log/user-data.log 2>&1
+
+      # Install & enable SSM Agent (for Ubuntu via snap)
+      echo "Installing SSM Agent" >> /var/log/user-data.log
+      snap install amazon-ssm-agent --classic >> /var/log/user-data.log 2>&1
+      systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service >> /var/log/user-data.log 2>&1
+      systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service >> /var/log/user-data.log 2>&1
 
       REGION="${var.region}"
       ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
