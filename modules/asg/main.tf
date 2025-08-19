@@ -1,21 +1,4 @@
 # IAM for EC2: ECR & CloudWatch Logs
-# Create new key pair
-resource "tls_private_key" "asg_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-
-resource "aws_key_pair" "asg_key" {
-  key_name   = "my-asg-key"
-  public_key = tls_private_key.asg_key.public_key_openssh
-}
-
-# Save the private key locally (will create my-asg-key.pem file in root)
-resource "local_file" "asg_private_key" {
-  content  = tls_private_key.asg_key.private_key_pem
-  filename = "${path.module}/my-asg-key.pem"
-  file_permission = "0600"
-}
 
 resource "aws_iam_role" "ec2_role" {
   name = "${var.env}-ec2-role"
@@ -179,7 +162,7 @@ resource "aws_launch_template" "lt" {
   name_prefix               = "${var.env}-react-lt-"
   image_id                  = var.ami_id
   instance_type             = var.instance_type
-  key_name                  = aws_key_pair.asg_key.key_name
+  key_name                  = var.key_name
   vpc_security_group_ids    = [aws_security_group.ec2_sg.id]
   iam_instance_profile      { name = aws_iam_instance_profile.ec2_profile.name }
   user_data                 = data.template_cloudinit_config.userdata.rendered
