@@ -4,6 +4,11 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment name (dev/qa/prod)"
+        required: true
+        default: "dev"
 
 jobs:
   build-and-push:
