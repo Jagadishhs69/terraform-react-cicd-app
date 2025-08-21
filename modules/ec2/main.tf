@@ -61,52 +61,56 @@ data "template_cloudinit_config" "userdata" {
     content_type = "text/x-shellscript"
     content      = <<-EOF
       #!/bin/bash
-      set -e
+      set -euo pipefail
+
+      exec > >(tee -a /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&1
 
       # Update system
-      apt-get update -y >> /var/log/user-data.log 2>&1
+      apt-get update -y
 
       # Install Docker
-      echo "Installing Docker" >> /var/log/user-data.log
-      apt-get install -y docker.io >> /var/log/user-data.log 2>&1
-      systemctl enable docker >> /var/log/user-data.log 2>&1
-      systemctl start docker >> /var/log/user-data.log 2>&1
-      usermod -a -G docker ubuntu >> /var/log/user-data.log 2>&1
+      echo "Installing Docker"
+      apt-get install -y docker.io || true
+      systemctl enable docker || true
+      systemctl start docker || true
+      usermod -a -G docker ubuntu || true
 
       # Install AWS CLI v2
-      echo "Installing AWS CLI v2" >> /var/log/user-data.log
-      apt-get install -y unzip curl >> /var/log/user-data.log 2>&1
-      curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" >> /var/log/user-data.log 2>&1
-      unzip awscliv2.zip >> /var/log/user-data.log 2>&1
-      ./aws/install >> /var/log/user-data.log 2>&1
+      echo "Installing AWS CLI v2"
+      apt-get install -y unzip curl || true
+      curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+      unzip -o awscliv2.zip
+      ./aws/install || true
 
       # Install & enable SSM Agent
-      echo "Installing SSM Agent" >> /var/log/user-data.log
-      snap install amazon-ssm-agent --classic >> /var/log/user-data.log 2>&1
-      systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service >> /var/log/user-data.log 2>&1
-      systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service >> /var/log/user-data.log 2>&1
+      echo "Installing SSM Agent"
+      snap install amazon-ssm-agent --classic || true
+      systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service || true
+      systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service || true
 
+      # Deploy Docker container
       REGION="${var.region}"
       ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
       ECR_URL="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
-
-      # ECR login
-      aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_URL
-
       IMAGE="${var.ecr_repo_url}:latest"
       CONTAINER="react-app"
 
-      # Stop old container if exists
+      echo "Logging into ECR..."
+      aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_URL
+
+      echo "Stopping old container if exists..."
       docker rm -f $CONTAINER || true
 
-      # Pull & run with CloudWatch Logs
+      echo "Pulling latest image..."
       docker pull $IMAGE
+
+      echo "Running new container..."
       docker run -d --name $CONTAINER -p 80:80 \
         --log-driver awslogs \
         --log-opt awslogs-region=$REGION \
         --log-opt awslogs-group=${local.log_group} \
         --log-opt awslogs-create-group=true \
         $IMAGE
-    EOF
+          EOF
   }
 }
