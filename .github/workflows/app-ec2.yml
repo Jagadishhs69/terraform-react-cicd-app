@@ -1,8 +1,6 @@
 name: EC2 Docker Build & Deploy React to ECR
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       environment:
