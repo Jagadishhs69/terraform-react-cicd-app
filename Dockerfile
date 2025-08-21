@@ -1,13 +1,13 @@
-# Build
-FROM node:20-alpine AS build
+# Stage 1: Build React app
+FROM node:18 as build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 COPY . .
 RUN npm run build
 
-# Serve
+# Stage 2: Nginx to serve build
 FROM nginx:alpine
 COPY --from=build /app/build /usr/share/nginx/html
 EXPOSE 80
-CMD ["nginx","-g","daemon off;"]
+CMD ["nginx", "-g", "daemon off;"]
