@@ -88,29 +88,29 @@ data "template_cloudinit_config" "userdata" {
       systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service || true
       systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service || true
 
-      # Deploy Docker container
-      REGION="${var.region}"
-      ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-      ECR_URL="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
-      IMAGE="${var.ecr_repo_url}:latest"
-      CONTAINER="react-app"
+      # # Deploy Docker container
+      # REGION="${var.region}"
+      # ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      # ECR_URL="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
+      # IMAGE="${var.ecr_repo_url}:latest"
+      # CONTAINER="react-app"
 
-      echo "Logging into ECR..."
-      aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_URL
+      # echo "Logging into ECR..."
+      # aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_URL
 
-      echo "Stopping old container if exists..."
-      docker rm -f $CONTAINER || true
+      # echo "Stopping old container if exists..."
+      # docker rm -f $CONTAINER || true
 
-      echo "Pulling latest image..."
-      docker pull $IMAGE
+      # echo "Pulling latest image..."
+      # docker pull $IMAGE
 
-      echo "Running new container..."
-      docker run -d --name $CONTAINER -p 80:80 \
-        --log-driver awslogs \
-        --log-opt awslogs-region=$REGION \
-        --log-opt awslogs-group=${local.log_group} \
-        --log-opt awslogs-create-group=true \
-        $IMAGE
+      # echo "Running new container..."
+      # docker run -d --name $CONTAINER -p 80:80 \
+      #   --log-driver awslogs \
+      #   --log-opt awslogs-region=$REGION \
+      #   --log-opt awslogs-group=${local.log_group} \
+      #   --log-opt awslogs-create-group=true \
+      #   $IMAGE
           EOF
   }
 }
