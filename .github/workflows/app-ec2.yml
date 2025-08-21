@@ -1,4 +1,4 @@
-name: Build & Deploy React to ECR
+name: EC2 Docker Build & Deploy React to ECR
 
 on:
   push:
@@ -11,21 +11,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Build static site & containerize using your Dockerfile under ./app
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ${{ secrets.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Login to ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & Push Image
+      - name: Build & Push Docker Image
         run: |
-          IMAGE="${{ secrets.ECR_REPO_URL }}"    # e.g. 123456789012.dkr.ecr.ap-south-1.amazonaws.com/dev-react-app
+          IMAGE="${{ secrets.ECR_REPO_URL }}"   # e.g. 123456789012.dkr.ecr.ap-south-1.amazonaws.com/dev-react-app
           docker build -t $IMAGE:latest .
           docker push $IMAGE:latest
 
@@ -42,7 +41,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Pull and Restart on EC2 via SSM
+      - name: Deploy to EC2 via SSM
         run: |
-          INSTANCE_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=${{ github.event.inputs.environment }}-app-ec2" --query "Reservations[*].Instances[*].InstanceId" --output text)
-          aws ssm send-command --instance-ids $INSTANCE_ID --document-name "AWS-RunShellScript" --parameters 'commands=["aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REPO_URL }}", "docker pull ${{ secrets.ECR_REPO_URL }}:latest", "docker stop $(docker ps -q) || true", "docker run -d -p 80:80 ${{ secrets.ECR_REPO_URL }}:latest"]'
+          # Get EC2 Instance ID based on Tag
+          INSTANCE_ID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${{ github.event.inputs.environment }}-app-ec2" \
+            --query "Reservations[*].Instances[*].InstanceId" \
+            --output text)
+
+          echo "Deploying to Instance: $INSTANCE_ID"
+
+          # Send commands to EC2 through SSM
+          aws ssm send-command \
+            --targets "Key=instanceIds,Values=$INSTANCE_ID" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy React App Docker Container" \
+            --parameters 'commands=[
+              "ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)",
+              "REGION=${{ secrets.AWS_REGION }}",
+              "ECR_URL=${{ secrets.ECR_REPO_URL }}",
+              "CONTAINER=react-app",
+
+              "echo Logging in to ECR",
+              "aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com",
+
+              "echo Stopping old container (if running)",
+              "docker rm -f $CONTAINER || true",
+
+              "echo Pulling latest image",
+              "docker pull $ECR_URL:latest",
+
+              "echo Running new container",
+              "docker run -d --name $CONTAINER -p 80:80 $ECR_URL:latest"
+            ]'
