@@ -14,10 +14,7 @@ variable "cpu_high_threshold" {
   type = number
   default = 80 
 }
-variable "alb_5xx_threshold"  { 
-  type = number
-  default = 5 
-}
+
 variable "create_sns" { 
   type = bool
   default = false 

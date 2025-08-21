@@ -1,48 +1,70 @@
-# Log group used by docker awslogs driver
-resource "aws_cloudwatch_log_group" "app" {
-  name              = "/${var.env}/react-app"
-  retention_in_days = var.log_retention_days
-  tags = { Name = "${var.env}-app-logs" }
-}
-
-# ALB 5xx alarm (ALB dimension needs arn_suffix)
-resource "aws_cloudwatch_metric_alarm" "alb_5xx" {
-  alarm_name          = "${var.env}-alb-5xx"
-  namespace           = "AWS/ApplicationELB"
-  metric_name         = "HTTPCode_ELB_5XX_Count"
-  statistic           = "Sum"
-  period              = 60
-  evaluation_periods  = 1
-  threshold           = var.alb_5xx_threshold
-  comparison_operator = "GreaterThanThreshold"
-  treat_missing_data  = "notBreaching"
-  dimensions = { LoadBalancer = var.alb_arn_suffix }
-}
-
-# Optional SNS for notifications
-resource "aws_sns_topic" "alerts" {
+resource "aws_sns_topic" "alarm_topic" {
+  name  = "${var.env}-alarm-topic"
   count = var.create_sns ? 1 : 0
-  name  = "${var.env}-alerts"
 }
 
 resource "aws_sns_topic_subscription" "email" {
   count     = var.create_sns && var.alert_email != "" ? 1 : 0
-  topic_arn = aws_sns_topic.alerts[0].arn
+  topic_arn = aws_sns_topic.alarm_topic[0].arn
   protocol  = "email"
   endpoint  = var.alert_email
 }
 
-# High CPU alarm (basic EC2 fleet signal)
+# CPU Utilization Alarm
 resource "aws_cloudwatch_metric_alarm" "cpu_high" {
-  alarm_name          = "${var.env}-cpu-high"
-  namespace           = "AWS/EC2"
-  metric_name         = "CPUUtilization"
-  statistic           = "Average"
-  period              = 60
-  evaluation_periods  = 2
-  threshold           = var.cpu_high_threshold
+  alarm_name          = "${var.env}-ec2-cpu-high"
   comparison_operator = "GreaterThanThreshold"
-  treat_missing_data  = "missing"
-  alarm_actions       = var.create_sns ? [aws_sns_topic.alerts[0].arn] : null
-  ok_actions          = var.create_sns ? [aws_sns_topic.alerts[0].arn] : null
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/EC2"
+  period              = 300
+  statistic           = "Average"
+  threshold           = var.cpu_high_threshold
+  alarm_description   = "Alarm when EC2 CPU exceeds ${var.cpu_high_threshold}%"
+  dimensions = {
+    InstanceId = var.instance_id
+  }
+  alarm_actions     = var.create_sns ? [aws_sns_topic.alarm_topic[0].arn] : []
+  treat_missing_data = "notBreaching"
+}
+
+# Memory Utilization Alarm (requires CloudWatch Agent)
+resource "aws_cloudwatch_metric_alarm" "memory_high" {
+  alarm_name          = "${var.env}-ec2-memory-high"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 2
+  metric_name         = "mem_used_percent"
+  namespace           = "CWAgent"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 80
+  alarm_description   = "Alarm when EC2 memory exceeds 80%"
+  dimensions = {
+    InstanceId = var.instance_id
+  }
+  alarm_actions     = var.create_sns ? [aws_sns_topic.alarm_topic[0].arn] : []
+  treat_missing_data = "notBreaching"
+}
+
+# Docker Container Stop/Exit Alarm (custom metric)
+resource "aws_cloudwatch_log_group" "docker_logs" {
+  name              = "/${var.env}/react-app"
+  retention_in_days = var.log_retention_days
+}
+
+resource "aws_cloudwatch_metric_alarm" "container_exit" {
+  alarm_name          = "${var.env}-docker-container-exit"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "ContainerExits"
+  namespace           = "Custom/Docker"
+  period              = 60
+  statistic           = "Sum"
+  threshold           = 0
+  alarm_description   = "Alarm when Docker container stops or exits"
+  dimensions = {
+    InstanceId = var.instance_id
+  }
+  alarm_actions     = var.create_sns ? [aws_sns_topic.alarm_topic[0].arn] : []
+  treat_missing_data = "notBreaching"
 }
